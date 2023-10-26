@@ -19,5 +19,5 @@ type Result struct {
 type ResultMeta struct {
 	Count int64 `json:"count"`
 	//Prev  interface{} `json:"prev"`
-	Next interface{} `json:"nextToken"`
+	Next interface{} `json:"next"`
 }
