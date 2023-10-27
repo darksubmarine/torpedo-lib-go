@@ -10,6 +10,9 @@ const (
 	// E4003 Entity building from DTO
 	E4003 = "4003"
 
+	// E4004 Entity not found
+	E4004 = "4004"
+
 	// E4005 - Entity Query (TQL) error
 	E4005 = "4005"
 
@@ -53,6 +56,11 @@ func ErrorPartialEntityIncomplete(err error) Error {
 // ErrorBuildingEntityFromDTO returns a 4003 error
 func ErrorBuildingEntityFromDTO(err error) Error {
 	return NewError(E4003, err)
+}
+
+// ErrorNotFound returns a 4004 error
+func ErrorNotFound(err error) Error {
+	return NewError(E4004, err)
 }
 
 // ErrorEntityQueryByUser returns a 4005 error

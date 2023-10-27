@@ -60,3 +60,27 @@ func TestEntityTo_DMO(t *testing.T) {
 	assert.EqualValues(t, ety.Name(), dmo.Name_)
 	assert.EqualValues(t, ety.Slice(), dmo.Slice_)
 }
+
+func TestEntityTo_QRO(t *testing.T) {
+
+	var qro = EntityQRO{}
+	var ety = NewEntity()
+
+	ety.SetId("qwerty0987")
+	ety.SetCreated(123123123)
+	ety.SetUpdated(9898988)
+
+	ety.SetString("some string value")
+	ety.SetInt(9)
+	ety.SetBoolean(true)
+	ety.SetSlice([]int{1, 2, 9, 8})
+	ety.SetName("some name value")
+
+	assert.Nil(t, entity.To(ety, &qro))
+
+	assert.EqualValues(t, ety.Id(), ptr.ToString(qro.Id_))
+	assert.EqualValues(t, ety.Created(), ptr.ToInt64(qro.Created_))
+	assert.EqualValues(t, ety.Updated(), ptr.ToInt64(qro.Updated_))
+	assert.EqualValues(t, ety.Name(), ptr.ToString(qro.Name_))
+
+}
