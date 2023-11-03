@@ -26,25 +26,31 @@ func IsComplete(obj interface{}, skip ...string) (bool, error) {
 func iterateFields(objTypeOf reflect.Type, objValueOf reflect.Value, skip map[string]struct{}) (bool, error) {
 	objTypeOfNumField := objTypeOf.NumField()
 	for i := 0; i < objTypeOfNumField; i++ {
-		if objTypeOf.Field(i).Type.Kind() == reflect.Struct {
+
+		if _, ok := skip[objTypeOf.Field(i).Name]; ok {
+			continue
+		}
+
+		switch objTypeOf.Field(i).Type.Kind() {
+		case reflect.Struct:
 			if ok, err := iterateFields(objTypeOf.Field(i).Type, objValueOf.Field(i), skip); err != nil {
 				return false, err
 			} else if !ok {
 				return false, nil
 			}
-		} else {
 
-			if _, ok := skip[objTypeOf.Field(i).Name]; ok {
-				continue
+		case reflect.Pointer:
+			if objValueOf.Field(i).IsNil() {
+				return false, nil // value is not set
 			}
 
-			if objValueOf.Field(i).Kind() == reflect.Pointer || objValueOf.Field(i).Kind() == reflect.Slice {
-				if objValueOf.Field(i).IsNil() {
-					return false, nil // value is not set
-				}
-			} else {
-				return false, fmt.Errorf("the object fields must be pointers and got %s(%s)", objTypeOf.Field(i).Name, objValueOf.Field(i).Kind().String())
+		case reflect.Slice, reflect.Map:
+			if objValueOf.Field(i).IsNil() || objValueOf.Field(i).Len() == 0 {
+				return false, nil // value is not set
 			}
+
+		default:
+			return false, fmt.Errorf("the object fields must be pointers and got %s(%s)", objTypeOf.Field(i).Name, objValueOf.Field(i).Kind().String())
 		}
 	}
 

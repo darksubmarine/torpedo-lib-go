@@ -27,6 +27,15 @@ type ObjectFinal struct {
 	Name_ *string `json:"name,omitempty"`
 }
 
+type AgreggatedObject struct {
+	List_ []*ListItem            `json:"list,omitempty"`
+	Map_  map[string]interface{} `json:"map,omitempty"`
+}
+
+type ListItem struct {
+	ItemName_ *string `json:"itemName,omitempty"`
+}
+
 func TestObject_IsCompleteFalse(t *testing.T) {
 	obj := ObjectFinal{}
 	ok, err := object.IsComplete(&obj)
@@ -44,7 +53,7 @@ func TestObject_IsCompleteTrue(t *testing.T) {
 				Boolean_: ptr.Bool(true),
 				Int_:     ptr.Int(123),
 				String_:  ptr.String("some string"),
-				Slice_:   []int{},
+				Slice_:   []int{1},
 			},
 		},
 		Name_: ptr.String("some value"),
@@ -69,11 +78,25 @@ func TestObject_IsCompleteError(t *testing.T) {
 				Boolean_: ptr.Bool(true),
 				Int_:     ptr.Int(123),
 				String_:  ptr.String("some string"),
-				Slice_:   []int{},
+				Slice_:   []int{1},
 			},
 		},
 	}
 	ok, err := object.IsComplete(&obj)
 	assert.False(t, ok)
 	assert.Error(t, err)
+}
+
+func TestObject_IsCompleteTrueWithSliceMap(t *testing.T) {
+	obj := AgreggatedObject{
+		List_: []*ListItem{
+			&ListItem{
+				ItemName_: ptr.String("some item name"),
+			},
+		},
+		Map_: map[string]interface{}{"key": "val"},
+	}
+	ok, err := object.IsComplete(&obj)
+	assert.True(t, ok)
+	assert.Nil(t, err)
 }
