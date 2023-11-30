@@ -21,6 +21,9 @@ func iterateQROFields(qroTypeOf reflect.Type, qroValueOf reflect.Value, field st
 
 		} else if name := qroTypeOf.Field(i).Name; name == field {
 			if qroTypeOf.Field(i).Type.Kind() == reflect.Pointer {
+				if qroValueOf.Field(i).IsNil() {
+					return nil
+				}
 				return reflect.Indirect(qroValueOf.Field(i)).Interface()
 			} else {
 				return qroValueOf.Field(i).Interface()
