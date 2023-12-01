@@ -28,6 +28,9 @@ var partialDTO = []byte(`{
 	"boolean": true
 }`)
 
+var validateFieldInvalidDTO = []byte(`{"inlist": "invalid"}`)
+var validateFieldValidDTO = []byte(`{"inlist": "valid"}`)
+
 func getDTO(data []byte) DTOEntity {
 	var dto DTOEntity
 	_ = json.Unmarshal(data, &dto)
@@ -64,4 +67,20 @@ func TestDTOToEntity_PartialDTO(t *testing.T) {
 	assert.EqualValues(t, ety.Boolean(), ptr.ToBool(dto.Boolean_))
 	assert.EqualValues(t, ety.Slice(), dto.Slice_)
 	assert.EqualValues(t, ety.Name(), ptr.ToString(dto.Name_))
+}
+
+func TestDTOToEntity_ValidateFieldError(t *testing.T) {
+
+	var dto = getDTO(validateFieldInvalidDTO)
+	var ety = NewEntity()
+	err := entity.From(&dto, ety)
+	assert.Error(t, err)
+}
+
+func TestDTOToEntity_ValidateFieldOK(t *testing.T) {
+
+	var dto = getDTO(validateFieldValidDTO)
+	var ety = NewEntity()
+	assert.Nil(t, entity.From(&dto, ety))
+	assert.EqualValues(t, ety.Inlist(), ptr.ToString(dto.Inlist_))
 }

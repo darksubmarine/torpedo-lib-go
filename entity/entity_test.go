@@ -1,6 +1,9 @@
 package entity_test
 
-import "github.com/darksubmarine/torpedo-lib-go/validator"
+import (
+	"fmt"
+	"github.com/darksubmarine/torpedo-lib-go/validator"
+)
 
 type entityBase struct {
 	// required
@@ -13,8 +16,19 @@ type entityBase struct {
 	_int     int
 	_boolean bool
 	_slice   []int
+	_inlist  string
 
 	validators map[string]validator.IValidator
+}
+
+func newEntityBase() *entityBase {
+	return new(entityBase).init()
+}
+
+func (e *entityBase) init() *entityBase {
+	e.validators = map[string]validator.IValidator{}
+	e.validators["inlist"] = validator.NewList([]string{"item1", "item2", "valid"})
+	return e
 }
 
 func (e *entityBase) SetId(id string) { e.id = id }
@@ -38,6 +52,15 @@ func (e *entityBase) Boolean() bool     { return e._boolean }
 func (e *entityBase) SetSlice(s []int) { e._slice = s }
 func (e *entityBase) Slice() []int     { return e._slice }
 
+func (e *entityBase) SetInlist(s string) (string, error) {
+	if !e.validators["inlist"].Value(s).IsValid() {
+		return s, fmt.Errorf("invalid value '%s' must be one of 'item1', 'item2', 'valid'", s)
+	}
+	e._inlist = s
+	return s, nil
+}
+func (e *entityBase) Inlist() string { return e._inlist }
+
 type Entity struct {
 	*entityBase
 
@@ -50,5 +73,6 @@ func (e *Entity) Name() string     { return e.name }
 
 func NewEntity() *Entity {
 	//return &Entity{entityBase: &entityBase{_slice: []int{}}}
-	return &Entity{entityBase: &entityBase{}}
+	return &Entity{entityBase: newEntityBase()}
+
 }

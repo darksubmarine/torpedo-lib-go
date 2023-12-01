@@ -12,6 +12,7 @@ type DTOEntityBasePartial struct {
 	Int_     *int    `json:"number,omitempty"`
 	Boolean_ *bool   `json:"boolean,omitempty"`
 	Slice_   []int   `json:"slice"`
+	Inlist_  *string `json:"inlist,omitempty"`
 }
 
 type DTOEntity struct {

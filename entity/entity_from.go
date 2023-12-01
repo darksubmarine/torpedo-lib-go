@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+var errorInterface = reflect.TypeOf((*error)(nil)).Elem()
+
 func From(from interface{}, entity interface{}) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -17,8 +19,7 @@ func From(from interface{}, entity interface{}) (err error) {
 	fromTypeOf := reflect.TypeOf(from).Elem()
 	fromValueOf := reflect.ValueOf(from).Elem()
 	entityValueOf := reflect.ValueOf(entity)
-	iterateFrom(fromTypeOf, fromValueOf, &entityValueOf)
-	return nil
+	return iterateFrom(fromTypeOf, fromValueOf, &entityValueOf)
 }
 
 func getValue(v reflect.Value) reflect.Value {
@@ -101,19 +102,32 @@ func getValue(v reflect.Value) reflect.Value {
 	return valueOf
 }
 
-func iterateFrom(fromTypeOf reflect.Type, fromValueOf reflect.Value, entityValueOf *reflect.Value) {
+func iterateFrom(fromTypeOf reflect.Type, fromValueOf reflect.Value, entityValueOf *reflect.Value) error {
 	fromTypeOfNumField := fromTypeOf.NumField()
 	for i := 0; i < fromTypeOfNumField; i++ {
 		if fromTypeOf.Field(i).Type.Kind() == reflect.Struct {
-			iterateFrom(fromTypeOf.Field(i).Type, fromValueOf.Field(i), entityValueOf)
+			if err := iterateFrom(fromTypeOf.Field(i).Type, fromValueOf.Field(i), entityValueOf); err != nil {
+				return err
+			}
 		} else if name := fromTypeOf.Field(i).Name; strings.HasSuffix(name, "_") {
 			varName, _ := strings.CutSuffix(name, "_")
 			methodName := fmt.Sprintf("Set%s", varName)
 			if entityValueOf.MethodByName(methodName).Kind() != reflect.Invalid {
 				if val := getValue(fromValueOf.Field(i)); val.Kind() != reflect.Invalid {
-					entityValueOf.MethodByName(methodName).Call([]reflect.Value{val})
+					// setting value
+					res := entityValueOf.MethodByName(methodName).Call([]reflect.Value{val})
+
+					// checking if result has an error
+					for _, r := range res {
+
+						if r.Interface() != nil && r.Type().Implements(errorInterface) {
+							return r.Interface().(error)
+						}
+
+					}
 				}
 			}
 		}
 	}
+	return nil
 }
