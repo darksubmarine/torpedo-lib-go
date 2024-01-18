@@ -4,7 +4,43 @@ import (
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"reflect"
+	"strings"
 )
+
+func ToMongoDBMetadata(dmo interface{}, skip ...string) map[string]string {
+	metadata := map[string]string{}
+
+	dmoTypeOf := reflect.TypeOf(dmo).Elem()
+	dmoValueOf := reflect.ValueOf(dmo).Elem()
+
+	skipMap := map[string]struct{}{}
+	for _, v := range skip {
+		skipMap[v] = struct{}{}
+	}
+
+	iterateDMOFields(dmoTypeOf, dmoValueOf, metadata, skipMap)
+
+	return metadata
+}
+
+func iterateDMOFields(dmoTypeOf reflect.Type, dmoValueOf reflect.Value, metadata map[string]string, skip map[string]struct{}) {
+	fromTypeOfNumField := dmoTypeOf.NumField()
+	for i := 0; i < fromTypeOfNumField; i++ {
+		if dmoTypeOf.Field(i).Type.Kind() == reflect.Struct {
+			iterateDMOFields(dmoTypeOf.Field(i).Type, dmoValueOf.Field(i), metadata, skip)
+		} else if name := dmoTypeOf.Field(i).Name; strings.HasSuffix(name, "_") {
+
+			fName := dmoTypeOf.Field(i).Name
+			if _, toSkip := skip[fName]; toSkip {
+				continue
+			}
+
+			metadata[dmoTypeOf.Field(i).Tag.Get("bson")] = dmoValueOf.Field(i).Type().String()
+
+		}
+	}
+}
 
 func MapToMongoDBFilter(q *Query, metadata map[string]string) (bson.D, error) {
 
@@ -15,7 +51,7 @@ func MapToMongoDBFilter(q *Query, metadata map[string]string) (bson.D, error) {
 	toFilter := []interface{}{}
 	for _, item := range q.Filter.Fields {
 		if fType, ok := metadata[item.Field]; !ok {
-			return nil, ErrInvalidFieldName
+			return nil, fmt.Errorf("%w | field name: %s", ErrInvalidFieldName, item.Field)
 		} else {
 			if docs, err := toMongoDoc(item, fType); err != nil {
 				return nil, err
@@ -85,7 +121,7 @@ func toMongoDocSimpleOperator(item FilterItem, fieldType string) ([]interface{},
 	//if operator != OpEQ && operator != OpNEQ && fieldType == "string" {
 	//	return nil, ErrOperationNotSupported
 	//}
-
+	// TODO getMongoField(entityField)
 	return []interface{}{
 		bson.D{{field(item.Field), bson.D{{operator, item.Value}}}},
 	}, nil

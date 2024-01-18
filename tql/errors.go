@@ -35,4 +35,7 @@ var (
 
 	// ErrInvalidPaginationType the pagination must be 'cursor' or 'offset'
 	ErrInvalidPaginationType = errors.New("the pagination must be 'cursor' or 'offset'")
+
+	// ErrInvalidSortFieldNotProjectionMember sort field must be a member of the projection field list
+	ErrInvalidSortFieldNotProjectionMember = errors.New("sort field must be a member of the projection field list")
 )

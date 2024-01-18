@@ -14,6 +14,7 @@ const (
 	Read
 	Update
 	Delete
+	Query
 )
 
 func NewMiddlewareTypeEnumFromString(s string) MiddlewareTypeEnum {
@@ -26,6 +27,8 @@ func NewMiddlewareTypeEnumFromString(s string) MiddlewareTypeEnum {
 		return Update
 	case "delete":
 		return Delete
+	case "query":
+		return Query
 	default:
 		return Undefined
 	}
@@ -49,6 +52,8 @@ func (c MiddlewareTypeEnum) String() string {
 		return "update"
 	case Delete:
 		return "delete"
+	case Query:
+		return "query"
 	}
 
 	return "undefined"
