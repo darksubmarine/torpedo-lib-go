@@ -37,6 +37,22 @@ func (c Map) FetchStringOrElse(val string, key ...string) string {
 	return val
 }
 
+func (c Map) FetchStringSliceP(key ...string) []string {
+	if val, ok := c.FetchP(key...).([]interface{}); ok {
+		ret := make([]string, len(val))
+		for i := 0; i < len(val); i++ {
+			if v, isValid := val[i].(string); isValid {
+				ret[i] = v
+			} else {
+				panic(fmt.Sprintf("invalid data type at key %s string list is expected and got %T", key, val[i]))
+			}
+		}
+		return ret
+	} else {
+		panic(fmt.Sprintf("invalid data type at key %s string list is expected"))
+	}
+}
+
 func (c Map) FetchIntP(key ...string) int {
 	if val, ok := c.FetchP(key...).(int); ok {
 		return val

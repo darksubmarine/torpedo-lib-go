@@ -107,7 +107,7 @@ func toMongoOperator(operator string) (string, error) {
 }
 
 func toMongoDocSimpleOperator(item FilterItem, fieldType string) ([]interface{}, error) {
-	if fieldType != "string" && fieldType != "int64" && fieldType != "float64" {
+	if fieldType != "string" && fieldType != "int64" && fieldType != "float64" && fieldType != "bool" {
 		return nil, ErrOperationNotSupported
 	}
 

@@ -77,7 +77,7 @@ func toSQLOperator(operator string) (string, error) {
 }
 
 func toSQLSimpleOperator(item FilterItem, fieldType string, itid int) (string, map[string]interface{}, error) {
-	if fieldType != "string" && fieldType != "int64" && fieldType != "float64" {
+	if fieldType != "string" && fieldType != "int64" && fieldType != "float64" && fieldType != "bool" {
 		return "", nil, ErrOperationNotSupported
 	}
 
@@ -108,6 +108,12 @@ func toSQLSimpleOperator(item FilterItem, fieldType string, itid int) (string, m
 		}
 	case "float64":
 		v, okAssert := item.Value.(float64)
+		if okAssert {
+			values[namedField] = v
+			return namedQuery, values, nil
+		}
+	case "bool":
+		v, okAssert := item.Value.(bool)
 		if okAssert {
 			values[namedField] = v
 			return namedQuery, values, nil
