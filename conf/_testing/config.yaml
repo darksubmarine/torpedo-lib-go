@@ -1,0 +1,6 @@
+log:
+  level: "INFO"
+  adapters:
+    - type: "stdout"
+    - type: "file"
+      filename: "test.log"

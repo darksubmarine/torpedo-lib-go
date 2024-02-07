@@ -1,10 +1,12 @@
 package crypto
 
 import (
-	"crypto/md5"
+	"crypto/sha1"
 	"encoding/hex"
 )
 
 func Hash(str string) string {
-	return hex.EncodeToString(md5.New().Sum([]byte(str)))
+	hasher := sha1.New()
+	hasher.Write([]byte(str))
+	return hex.EncodeToString(hasher.Sum(nil))
 }

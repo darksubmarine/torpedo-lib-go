@@ -49,7 +49,7 @@ func (c Map) FetchStringSliceP(key ...string) []string {
 		}
 		return ret
 	} else {
-		panic(fmt.Sprintf("invalid data type at key %s string list is expected"))
+		panic(fmt.Sprintf("invalid data type at key %s string list is expected", key))
 	}
 }
 
