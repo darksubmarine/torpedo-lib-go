@@ -10,7 +10,7 @@ const (
 	envIdxDefaultValue = 2
 )
 
-var yamlEnvRegex = regexp.MustCompile(`^\s*\$\{(\w+)(:\w+)?\}\s*$`)
+var yamlEnvRegex = regexp.MustCompile(`^\s*\$\{(\w+):?([\w|:|\/|\?|\&|=|\.|@|#|_|-]+)?\}\s*$`)
 
 func processWithEnvVarInterpolation(raw string) string {
 
@@ -26,7 +26,7 @@ func processWithEnvVarInterpolation(raw string) string {
 
 	// if the value of the env var is empty, but there is a fallback, return it
 	if len(value) == 0 && len(fallback) > 1 {
-		return fallback[1:]
+		return fallback
 	}
 
 	return value
