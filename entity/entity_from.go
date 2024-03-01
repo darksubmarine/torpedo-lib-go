@@ -114,8 +114,20 @@ func iterateFrom(fromTypeOf reflect.Type, fromValueOf reflect.Value, entityValue
 			methodName := fmt.Sprintf("Set%s", varName)
 			if entityValueOf.MethodByName(methodName).Kind() != reflect.Invalid {
 				if val := getValue(fromValueOf.Field(i)); val.Kind() != reflect.Invalid {
+
+					var valueToSet = val
+					// Checking for encrypted fields
+					if tagVal, ok := fromTypeOf.Field(i).Tag.Lookup("tpdo"); ok {
+						if tagVal == "encrypted" {
+							if fromValueOf.MethodByName("DecryptString").Kind() != reflect.Invalid {
+								vals := fromValueOf.MethodByName("DecryptString").Call([]reflect.Value{val})
+								valueToSet = vals[0] // TODO handle error
+							}
+						}
+					}
+
 					// setting value
-					res := entityValueOf.MethodByName(methodName).Call([]reflect.Value{val})
+					res := entityValueOf.MethodByName(methodName).Call([]reflect.Value{valueToSet})
 
 					// checking if result has an error
 					for _, r := range res {
