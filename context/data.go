@@ -17,9 +17,6 @@ type IDataMap interface {
 	GetBoolOrElse(key string, val bool) bool
 }
 
-// EmptyDataMap to use as empty map reference.
-var EmptyDataMap = &DataMap{}
-
 // DataMap wrapper of data_struct.KeyValueMap and implements an empty context.Context interface to match with go standards
 type DataMap struct {
 	sync.Map
