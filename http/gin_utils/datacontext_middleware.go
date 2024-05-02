@@ -28,12 +28,13 @@ func SetDataContext(c *gin.Context, key string, val interface{}) {
 	}
 }
 
-// GetDataContext returns the context.DataMap and a boolean to check if it exists.
+// GetDataContext returns the request context.DataMap and a boolean to check if it exists.
+// If the data map has not been set a context.EmptyDataMap is returned instead
 func GetDataContext(c *gin.Context) (*context.DataMap, bool) {
 	if dCtx, ok := c.Get(KeyDataContext); ok {
 		cast, ok := dCtx.(*context.DataMap)
 		return cast, ok
 	}
 
-	return nil, false
+	return context.EmptyDataMap, false
 }

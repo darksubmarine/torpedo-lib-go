@@ -5,6 +5,21 @@ import (
 	"time"
 )
 
+// IDataMap interface to defines DataMap methods.
+type IDataMap interface {
+	Set(key string, val interface{})
+	Get(key string) interface{}
+	GetOrElse(key string, val interface{}) interface{}
+	GetStringOrElse(key string, val string) string
+	GetInt64OrElse(key string, val int64) int64
+	GetIntOrElse(key string, val int) int
+	GetFloat64OrElse(key string, val float64) float64
+	GetBoolOrElse(key string, val bool) bool
+}
+
+// EmptyDataMap to use as empty map reference.
+var EmptyDataMap = &DataMap{}
+
 // DataMap wrapper of data_struct.KeyValueMap and implements an empty context.Context interface to match with go standards
 type DataMap struct {
 	sync.Map
