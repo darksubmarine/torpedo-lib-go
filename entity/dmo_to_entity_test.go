@@ -20,6 +20,7 @@ func TestDMOToEntity_FullDMO(t *testing.T) {
 	assert.Equal(t, ety.Boolean(), dmo.Boolean_)
 	assert.Equal(t, ety.Slice(), dmo.Slice_)
 	assert.Equal(t, ety.Name(), dmo.Name_)
+	assert.Equal(t, ety.Secret(), dmoSecretVal)
 }
 
 func TestDMOToEntity_PartialDMO(t *testing.T) {

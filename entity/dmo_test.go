@@ -36,16 +36,23 @@ type EntityDMOBase struct {
 }
 
 type EntityDMOBasePartial struct {
+	*EntityDMO
+
 	String_  string `json:"string,omitempty" read_method:"String"`
 	Int_     int    `json:"number,omitempty"`
 	Boolean_ bool   `json:"boolean,omitempty"`
 	Slice_   []int  `json:"slice"`
+	Secret_  string `json:"secret" tpdo:"encrypted"`
 }
 
 type EntityDMOJSON struct {
 	EntityDMOBase
 	Name_ string `json:"name,omitempty"`
 }
+
+var dmoCryptoKey = []byte("the-key-has-to-be-32-bytes-long!")
+var dmoSecretVal = "my super secret"
+var dmoSecretEncryptVal = "u8BA6N+rHNe5xg2oL/VIAEHNCig1A8HcsY12jaDAPtOy/WxcNFvq4b52PQ=="
 
 var fullDMO = []byte(`{
 	"id": "qwerty-123456",
@@ -55,6 +62,7 @@ var fullDMO = []byte(`{
 	"number": 515,
 	"boolean": true,
 	"slice": [1,2,3,4,5,6,7,8,9,0],
+	"secret": "u8BA6N+rHNe5xg2oL/VIAEHNCig1A8HcsY12jaDAPtOy/WxcNFvq4b52PQ==",
 	"name": "some-name-value"
 }`)
 
@@ -68,11 +76,25 @@ var partialDMO = []byte(`{
 }`)
 
 func getDMO(data []byte) EntityDMOJSON {
-	var dmo = EntityDMOJSON{EntityDMOBase: EntityDMOBase{EntityDMO: NewEntityDMO([]byte("some =-key")), EntityDMOBasePartial: EntityDMOBasePartial{}}}
+	entityDMO := NewEntityDMO(dmoCryptoKey)
+	var dmo = EntityDMOJSON{
+		EntityDMOBase: EntityDMOBase{
+			EntityDMO: entityDMO,
+			EntityDMOBasePartial: EntityDMOBasePartial{
+				EntityDMO: entityDMO,
+			},
+		},
+	}
 	_ = json.Unmarshal(data, &dmo)
 	return dmo
 }
 
 func getEmptyDMO() EntityDMOJSON {
-	return EntityDMOJSON{EntityDMOBase: EntityDMOBase{EntityDMO: NewEntityDMO([]byte("some =-key")), EntityDMOBasePartial: EntityDMOBasePartial{}}}
+	entityDMO := NewEntityDMO(dmoCryptoKey)
+	return EntityDMOJSON{
+		EntityDMOBase: EntityDMOBase{
+			EntityDMO: entityDMO,
+			EntityDMOBasePartial: EntityDMOBasePartial{
+				EntityDMO: entityDMO,
+			}}}
 }

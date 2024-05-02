@@ -17,6 +17,7 @@ type entityBase struct {
 	_boolean bool
 	_slice   []int
 	_inlist  string
+	_secret  string
 
 	validators map[string]validator.IValidator
 }
@@ -60,6 +61,9 @@ func (e *entityBase) SetInlist(s string) (string, error) {
 	return s, nil
 }
 func (e *entityBase) Inlist() string { return e._inlist }
+
+func (e *entityBase) SetSecret(s string) { e._secret = s }
+func (e *entityBase) Secret() string     { return e._secret }
 
 type Entity struct {
 	*entityBase

@@ -59,8 +59,20 @@ func iterateTo(toTypeOf reflect.Type, toValueOf *reflect.Value, entityValueOf *r
 				}
 
 				values := entityValueOf.MethodByName(methodName).Call([]reflect.Value{})
+				valueToSet := values[0]
 				toValueOfField := toValueOf.Field(i)
-				setValue(&toValueOfField, &values[0])
+
+				// Checking for encrypted fields
+				if tagVal, ok := toTypeOf.Field(i).Tag.Lookup("tpdo"); ok {
+					if tagVal == "encrypted" {
+						if toValueOf.MethodByName("EncryptString").Kind() != reflect.Invalid {
+							vals := toValueOf.MethodByName("EncryptString").Call([]reflect.Value{valueToSet})
+							valueToSet = vals[0]
+						}
+					}
+				}
+
+				setValue(&toValueOfField, &valueToSet)
 			}
 		}
 	}
