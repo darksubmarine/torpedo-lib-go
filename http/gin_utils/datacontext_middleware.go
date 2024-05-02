@@ -22,18 +22,21 @@ func WithDataContext() func(*gin.Context) {
 // SetDataContext sets a key-value pair into the DataContext map.
 func SetDataContext(c *gin.Context, key string, val interface{}) {
 	dCtx, ok := c.Get(KeyDataContext)
-	if ok {
-		dCtx.(*context.DataMap).Set(key, val)
-		c.Set(KeyDataContext, dCtx)
+	if !ok {
+		dCtx = context.NewDataMap()
 	}
+
+	dCtx.(*context.DataMap).Set(key, val)
+	c.Set(KeyDataContext, dCtx)
 }
 
-// GetDataContext returns the context.DataMap and a boolean to check if it exists.
+// GetDataContext returns the request context.DataMap and a boolean to check if it exists.
+// If the data map has not been set a context.EmptyDataMap is returned instead
 func GetDataContext(c *gin.Context) (*context.DataMap, bool) {
 	if dCtx, ok := c.Get(KeyDataContext); ok {
 		cast, ok := dCtx.(*context.DataMap)
 		return cast, ok
 	}
 
-	return nil, false
+	return context.NewDataMap(), false
 }
