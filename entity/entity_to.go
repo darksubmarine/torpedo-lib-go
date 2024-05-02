@@ -67,7 +67,6 @@ func iterateTo(toTypeOf reflect.Type, toValueOf *reflect.Value, entityValueOf *r
 					if tagVal == "encrypted" {
 						if toValueOf.MethodByName("EncryptString").Kind() != reflect.Invalid {
 							vals := toValueOf.MethodByName("EncryptString").Call([]reflect.Value{valueToSet})
-							fmt.Println(vals[0].Interface())
 							valueToSet = vals[0]
 						}
 					}

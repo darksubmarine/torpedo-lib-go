@@ -1,6 +1,7 @@
 package entity_test
 
 import (
+	"github.com/darksubmarine/torpedo-lib-go/crypto"
 	"github.com/darksubmarine/torpedo-lib-go/entity"
 	"github.com/darksubmarine/torpedo-lib-go/ptr"
 	"github.com/stretchr/testify/assert"
@@ -48,6 +49,7 @@ func TestEntityTo_DMO(t *testing.T) {
 	ety.SetBoolean(true)
 	ety.SetSlice([]int{1, 2, 9, 8})
 	ety.SetName("some name value")
+	ety.SetSecret(dmoSecretVal)
 
 	assert.Nil(t, entity.To(ety, &dmo))
 
@@ -59,6 +61,11 @@ func TestEntityTo_DMO(t *testing.T) {
 	assert.EqualValues(t, ety.Boolean(), dmo.Boolean_)
 	assert.EqualValues(t, ety.Name(), dmo.Name_)
 	assert.EqualValues(t, ety.Slice(), dmo.Slice_)
+
+	// Because the encrypted value is always different we decoded and compare values
+	decoded, err := crypto.DecodeString(dmoCryptoKey, dmo.Secret_)
+	assert.Nil(t, err)
+	assert.EqualValues(t, dmoSecretVal, decoded)
 }
 
 func TestEntityTo_QRO(t *testing.T) {
