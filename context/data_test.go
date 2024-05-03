@@ -93,3 +93,27 @@ func TestDataMap_GetStringOrElse(t *testing.T) {
 	v1 := m.GetStringOrElse("invalid", "default string")
 	assert.EqualValues(t, "default string", v1)
 }
+
+func TestDataMap_Value(t *testing.T) {
+	m := context.NewDataMap()
+	m.Set("keyInt", 89)
+	m.Set("keyString", "torpedo")
+	m.Set("keyBool", true)
+
+	v1 := m.Value("keyInt")
+	assert.IsType(t, 0, v1)
+	assert.EqualValues(t, 89, v1)
+
+	v2 := m.Value("keyString")
+	assert.IsType(t, "", v2)
+	assert.EqualValues(t, "torpedo", v2)
+
+	v3 := m.Value("keyBool")
+	assert.IsType(t, false, v3)
+	assert.EqualValues(t, true, v3)
+}
+
+func TestNewNoopDataMap(t *testing.T) {
+	m := context.NewNoopDataMap()
+	assert.Nil(t, m.Value("key"))
+}
