@@ -63,7 +63,7 @@ func iterateTo(toTypeOf reflect.Type, toValueOf *reflect.Value, entityValueOf *r
 				toValueOfField := toValueOf.Field(i)
 
 				// Checking for encrypted fields
-				if tagVal, ok := toTypeOf.Field(i).Tag.Lookup("tpdo"); ok {
+				if tagVal, ok := toTypeOf.Field(i).Tag.Lookup(tagField); ok {
 					if tagVal == "encrypted" {
 						if toValueOf.MethodByName("EncryptString").Kind() != reflect.Invalid {
 							vals := toValueOf.MethodByName("EncryptString").Call([]reflect.Value{valueToSet})

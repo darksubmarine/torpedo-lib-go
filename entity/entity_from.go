@@ -117,7 +117,7 @@ func iterateFrom(fromTypeOf reflect.Type, fromValueOf reflect.Value, entityValue
 
 					var valueToSet = val
 					// Checking for encrypted fields
-					if tagVal, ok := fromTypeOf.Field(i).Tag.Lookup("tpdo"); ok {
+					if tagVal, ok := fromTypeOf.Field(i).Tag.Lookup(tagField); ok {
 						if tagVal == "encrypted" {
 							if fromValueOf.MethodByName("DecryptString").Kind() != reflect.Invalid {
 								vals := fromValueOf.MethodByName("DecryptString").Call([]reflect.Value{val})

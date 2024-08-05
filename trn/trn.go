@@ -51,7 +51,11 @@ func (a *TRN) ID() string { return a.id }
 // String returns the TRN string representation
 func (a *TRN) String() string {
 	return fmt.Sprintf("trn::%s::%s::%s", a.kind, a.name, a.id)
-	return fmt.Sprintf("URN:%s:%s@%s", a.kind, a.name, a.id)
+}
+
+// URN returns the URN string representation
+func (a *TRN) URN() string {
+	return fmt.Sprintf("urn:%s:%s:%s", a.kind, a.name, a.id)
 }
 
 // Equals returns true if the given TRN is equals

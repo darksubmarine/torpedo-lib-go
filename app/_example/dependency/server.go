@@ -10,30 +10,29 @@ import (
 	"net/http"
 )
 
-const HTTP_SERVER = "HTTPSERVER"
-
 type HttpServerProvider struct {
 	app.BaseProvider
+	cfg conf.Map
 
-	cfg    conf.Map
-	mux    *http.ServeMux
-	logger *slog.Logger
+	// instance to be provided
+	mux *http.ServeMux `torpedo.di:"provide,name=HTTPSERVER"`
+
+	// binds
+	logger *slog.Logger `torpedo.di:"bind,name=LOGGER"`
 }
 
 func NewHttpServerProvider(config conf.Map) *HttpServerProvider {
 	return &HttpServerProvider{cfg: config}
 }
 
-func (p *HttpServerProvider) Provide(c app.IContainer) (interface{}, error) {
-	p.logger = c.InvokeP(LOGGER).(*slog.Logger)
-
+func (p *HttpServerProvider) Provide(c app.IContainer) error {
 	p.mux = http.NewServeMux()
 	p.mux.HandleFunc("/ping", func(writer http.ResponseWriter, request *http.Request) {
 		p.logger.Info("/ping has been called")
 		io.WriteString(writer, "pong!")
 	})
 
-	return p.mux, nil
+	return nil
 }
 
 func (p *HttpServerProvider) OnStart() func() error {

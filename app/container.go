@@ -6,12 +6,20 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
+	"strings"
 	"syscall"
+	"unsafe"
+)
+
+const (
+	tagPrefix   = "torpedo.di"
+	tagProvider = "provide"
+	tagBinder   = "bind"
 )
 
 // iAppLifeCycle interface that defines the app life cycle
 type iAppLifeCycle interface {
-	register(name string, obj interface{}, fn func() error) error
+	//register(name string, obj interface{}, fn func() error) error
 	onStart(func() error)
 	onStop(func() error)
 	start() []error
@@ -40,6 +48,12 @@ type IApp interface {
 	Run()
 }
 
+type RegisteredProvider struct {
+	instance IProvider
+	provides map[string]struct{}
+	binds    map[string]struct{}
+}
+
 // ApplicationContainer implementation of the IApp interface. Handles the app life cycle and the
 // main dependency container.
 type ApplicationContainer struct {
@@ -50,7 +64,8 @@ type ApplicationContainer struct {
 	sigs chan os.Signal
 
 	// dynamic dependencies
-	deps map[string]interface{}
+	providers map[string]*RegisteredProvider
+	values    map[string]reflect.Value
 
 	// hooks
 	onStartHook []func() error
@@ -72,7 +87,8 @@ func NewContainer(opts ContainerOpts) *ApplicationContainer {
 		sigs:        make(chan os.Signal, 1),
 		onStartHook: make([]func() error, 0),
 		onStopHook:  make([]func() error, 0),
-		deps:        make(map[string]interface{}),
+		providers:   map[string]*RegisteredProvider{},
+		values:      map[string]reflect.Value{},
 	}
 
 	signal.Notify(container.sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -80,68 +96,134 @@ func NewContainer(opts ContainerOpts) *ApplicationContainer {
 	return container
 }
 
-// print verbose method to print to std out
-func (c *ApplicationContainer) print(format string, a ...any) {
-	fmt.Println("[TPDO]", fmt.Sprintf(format, a...))
-}
-
-// printnln verbose method to printnln to std out
-func (c *ApplicationContainer) printnln(format string, a ...any) {
-	fmt.Println("\n[TPDO]", fmt.Sprintf(format, a...))
-}
-
-// execProvider call the provider.Provide method used to register a new dependency
-func (c *ApplicationContainer) execProvider(provider IProvider) interface{} {
-	if obj, err := provider.Provide(c); err != nil {
-		panic(err)
-	} else {
-		return obj
-	}
-	return nil
-}
-
-// register the provided dependency object and execute the hook OnRegister
-func (c *ApplicationContainer) register(name string, obj interface{}, fn func() error) error {
-	if err := c.Register(name, obj); err != nil {
-		c.print("ERROR registering provider %s", name)
-		return err
-	}
-
-	if err := fn(); err != nil {
-		c.print("ERROR on OnRegister provider hook function for %s", name)
-		return err
-	}
-
-	return nil
-}
-
-// WithProvider useful to provide an object by type
+// WithProvider provides dependencies
 func (c *ApplicationContainer) WithProvider(provider IProvider) *ApplicationContainer {
-	return c.WithNamedProvider("", provider)
-}
+	var providerName = reflect.TypeOf(provider).String()
 
-// WithNamedProvider useful to provide an object by name
-func (c *ApplicationContainer) WithNamedProvider(name string, provider IProvider) *ApplicationContainer {
-	if obj := c.execProvider(provider); obj != nil {
-		if name == "" {
-			name = fmt.Sprint(reflect.TypeOf(obj))
+	// registering providers
+	if _, ok := c.providers[providerName]; !ok {
+		c.providers[providerName] = &RegisteredProvider{
+			instance: provider,
+			provides: map[string]struct{}{},
+			binds:    map[string]struct{}{},
 		}
-		c.register(name, obj, provider.OnRegister())
+	} else {
+		panic(fmt.Sprintf("another provider has been registered with the name: %s", providerName))
+	}
 
-		// adding LifeCycle hooks
-		c.onStart(provider.OnStart())
-		c.onStop(provider.OnStop())
+	for i := 0; i < reflect.TypeOf(provider).Elem().NumField(); i++ {
+		field := reflect.TypeOf(provider).Elem().Field(i)
+		// skipping register field.
+		if field.Name == "BaseProvider" {
+			continue
+		}
+
+		if tagVal, ok := field.Tag.Lookup(tagPrefix); ok && tagVal != "" {
+			tagParts := strings.Split(tagVal, ",")
+			instanceType := field.Type.String()
+			if len(tagParts) == 2 {
+				instanceType = strings.Replace(tagParts[1], "name=", "", 1)
+			}
+
+			if tagParts[0] == tagProvider { // it is a provider
+				if _, ok := c.values[instanceType]; !ok {
+					val := reflect.ValueOf(provider).Elem().Field(i)
+					c.values[instanceType] = reflect.NewAt(val.Type(), unsafe.Pointer(val.UnsafeAddr())).Elem()
+					c.providers[providerName].provides[instanceType] = struct{}{}
+				} else {
+					panic(fmt.Sprintf("provider %s is trying to provide an already registered dependency with name/type: %s", providerName, instanceType))
+				}
+			} else if tagParts[0] == tagBinder { // it is a bound instance
+				c.providers[providerName].binds[instanceType] = struct{}{}
+			}
+		}
 	}
 	return c
 }
 
-// exitWithErrors finalize the app with an os.Exit(1)
-func (c *ApplicationContainer) exitWithErrors(msg string, errs []error) {
-	fmt.Println(msg)
-	for i, err := range errs {
-		fmt.Printf("  %d - %s\n", i, err)
+func (c *ApplicationContainer) lookupProviderFor(bind string) string {
+	for pName, provider := range c.providers {
+		if _, ok := provider.provides[bind]; ok {
+			return pName
+		}
 	}
-	os.Exit(1)
+
+	return ""
+}
+
+func (c *ApplicationContainer) provideDependencies() {
+	depGraph := NewDependencyGraph()
+
+	// adding vertexes
+	for pName, _ := range c.providers {
+		depGraph.AddVertex(pName)
+	}
+
+	for pName, provider := range c.providers {
+		for bind, _ := range provider.binds {
+			provDependsOn := c.lookupProviderFor(bind)
+			if provDependsOn == "" {
+				panic(fmt.Errorf("%w whithin %s for %s", ErrDependencyNotProvided, pName, bind))
+			}
+			_ = depGraph.AddEdge(pName, provDependsOn)
+		}
+	}
+
+	if lst, err := depGraph.TopologicalSort(); err == nil {
+		for i := 0; i < len(lst); i++ {
+			provName := lst[i]
+
+			// ensure all binds are set.
+			pInstance := c.providers[provName].instance
+			for i := 0; i < reflect.TypeOf(pInstance).Elem().NumField(); i++ {
+				field := reflect.TypeOf(pInstance).Elem().Field(i)
+				// skipping register field.
+				if field.Name == "BaseProvider" {
+					continue
+				}
+
+				if tagVal, ok := field.Tag.Lookup(tagPrefix); ok && tagVal != "" {
+					tagParts := strings.Split(tagVal, ",")
+					if tagParts[0] == tagBinder {
+						instanceType := field.Type.String()
+						if len(tagParts) == 2 {
+							instanceType = strings.Replace(tagParts[1], "name=", "", 1)
+						}
+
+						if val, exists := c.values[instanceType]; exists {
+							if (val.Kind() == reflect.Pointer || val.Kind() == reflect.Func) && val.IsNil() {
+								panic(fmt.Sprintf("The binded field named '%s' in your provider %s cannot be nil. \n> "+
+									"hint: Check if the provider has been initialized into the Provider() method in your %s", field.Name, provName, c.lookupProviderFor(instanceType)))
+							}
+
+							fv := reflect.ValueOf(pInstance).Elem().Field(i)
+							// fv is not writable because it is no-exportable. So, using unsafe.Pointer to hack it!
+							fv = reflect.NewAt(fv.Type(), unsafe.Pointer(fv.UnsafeAddr())).Elem()
+
+							if val.Kind() == reflect.Func {
+								out := val.Call([]reflect.Value{reflect.ValueOf(c)})
+								fv.Set(reflect.ValueOf(out[0].Interface()))
+							} else {
+								fv.Set(reflect.ValueOf(val.Interface()))
+							}
+						} else {
+							panic(fmt.Sprintf("provider not found for %s at %s", instanceType, provName))
+						}
+					}
+				}
+			}
+
+			if err := pInstance.Provide(c); err != nil {
+				panic(fmt.Sprintf("error providing %s with %s", provName, err))
+			} else {
+				// adding LifeCycle hooks
+				c.onStart(pInstance.OnStart())
+				c.onStop(pInstance.OnStop())
+			}
+		}
+	} else {
+		panic(fmt.Sprintf("Dependency cycle: %s\n", err))
+	}
 }
 
 // Run app method to starts the application life cycle
@@ -152,6 +234,9 @@ func (c *ApplicationContainer) Run() {
 		}
 	}()
 
+	// check cycle dependencies and register providers.
+	c.provideDependencies()
+
 	if startErrs := c.start(); len(startErrs) > 0 {
 		c.exitWithErrors("Dependencies container cannot START due to some deps starting errors", startErrs)
 	}
@@ -161,46 +246,35 @@ func (c *ApplicationContainer) Run() {
 	c.printnln("Application terminated by signal")
 }
 
-// onStart register the OnStart hook from providers
-func (c *ApplicationContainer) onStart(fn func() error) {
-	c.onStartHook = append(c.onStartHook, fn)
-}
-
-// onStart register the OnStop hook from providers
-func (c *ApplicationContainer) onStop(fn func() error) {
-	c.onStopHook = append(c.onStopHook, fn)
-}
-
 // Register exposed method to register object by name without linked hooks
 func (c *ApplicationContainer) Register(name string, obj interface{}) error {
-	if obj == nil {
-		return fmt.Errorf("%w {name=%s}", ErrNilDependency, name)
-	}
+	tpy := reflect.TypeOf(obj)
+	val := reflect.ValueOf(obj)
 
-	if _, exists := c.deps[name]; exists {
-		return fmt.Errorf("%w {name=%s}", ErrDependencyAlreadyProvided, name)
+	instanceType := tpy.String()
+	if name != "" {
+		instanceType = name
 	}
+	c.values[instanceType] = val //reflect.NewAt(val.Type(), unsafe.Pointer(val.UnsafeAddr())).Elem()
 
-	c.print("Registering dependency for %s", name)
-	c.deps[name] = obj
 	return nil
 }
 
 // Invoke fetch a named dependency from the container or error if not exists.
 func (c *ApplicationContainer) Invoke(name string) (interface{}, error) {
-	if obj, exists := c.deps[name]; !exists {
+	if obj, exists := c.values[name]; !exists {
 		return nil, fmt.Errorf("%w {name=%s}", ErrDependencyNotProvided, name)
 	} else {
-		return obj, nil
+		return obj.Interface(), nil
 	}
 }
 
 // InvokeP fetch a named dependency from the container and panic if not exists.
 func (c *ApplicationContainer) InvokeP(name string) interface{} {
-	if obj, exists := c.deps[name]; !exists {
+	if obj, exists := c.values[name]; !exists {
 		panic(fmt.Errorf("depedency with name %s has not been provided", name))
 	} else {
-		return obj
+		return obj.Interface()
 	}
 }
 
@@ -215,6 +289,15 @@ func (c *ApplicationContainer) InvokeByTypeP(obj interface{}) interface{} {
 	name := fmt.Sprint(reflect.TypeOf(obj))
 	return c.InvokeP(name)
 }
+
+// Logger returns the container logger useful to log something into your providers
+func (c *ApplicationContainer) Logger() *slog.Logger {
+	return c.log
+}
+
+// ------------------------
+// -- Unexported methods --
+// ------------------------
 
 // execHook execute the given hooks.
 func (c *ApplicationContainer) execHook(fns []func() error) []error {
@@ -240,7 +323,31 @@ func (c *ApplicationContainer) stop() []error {
 	return c.execHook(c.onStopHook)
 }
 
-// Logger returns the container logger useful to log something into your providers
-func (c *ApplicationContainer) Logger() *slog.Logger {
-	return c.log
+// exitWithErrors finalize the app with an os.Exit(1)
+func (c *ApplicationContainer) exitWithErrors(msg string, errs []error) {
+	fmt.Println(msg)
+	for i, err := range errs {
+		fmt.Printf("  %d - %s\n", i, err)
+	}
+	os.Exit(1)
+}
+
+// onStart register the OnStart hook from providers
+func (c *ApplicationContainer) onStart(fn func() error) {
+	c.onStartHook = append(c.onStartHook, fn)
+}
+
+// onStop register the OnStop hook from providers
+func (c *ApplicationContainer) onStop(fn func() error) {
+	c.onStopHook = append(c.onStopHook, fn)
+}
+
+// print verbose method to print to std out
+func (c *ApplicationContainer) print(format string, a ...any) {
+	fmt.Println("[TPDO]", fmt.Sprintf(format, a...))
+}
+
+// printnln verbose method to printnln to std out
+func (c *ApplicationContainer) printnln(format string, a ...any) {
+	fmt.Println("\n[TPDO]", fmt.Sprintf(format, a...))
 }
