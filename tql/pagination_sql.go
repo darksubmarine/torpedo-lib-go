@@ -13,7 +13,7 @@ func ToSortSQL(items []SortItem) string {
 	sf := strings.Builder{}
 	sf.WriteString(" ORDER BY")
 	for _, f := range items {
-		if f.Kind == "asc" {
+		if strings.ToLower(f.Kind) == "asc" {
 			sf.WriteString(fmt.Sprintf(" %s ASC,", f.Field))
 		} else {
 			sf.WriteString(fmt.Sprintf(" %s DESC,", f.Field))

@@ -1,12 +1,13 @@
 package mongodb_utils
 
 import (
+	"github.com/darksubmarine/torpedo-lib-go/entity"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestUpdate(t *testing.T) {
-	bsonD := ToBSONDocument(&fullDMO, "Id_", "Created_")
+	bsonD := ToBSONDocument(&fullDMO, make(map[string]*entity.FieldMetadata), "Id_", "Created_")
 
 	toCheck := map[string]interface{}{
 		"updated": 1697649758123,

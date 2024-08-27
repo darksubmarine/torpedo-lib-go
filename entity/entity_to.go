@@ -1,8 +1,10 @@
 package entity
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/darksubmarine/torpedo-lib-go/ptr"
+	"github.com/darksubmarine/torpedo-lib-go/storage/sql_utils/data_type"
 	"reflect"
 	"strings"
 )
@@ -17,54 +19,100 @@ func To(entity interface{}, to interface{}, field ...string) (err error) {
 
 	toTypeOf := reflect.TypeOf(to).Elem()
 	toValueOf := reflect.ValueOf(to).Elem()
-	entityValueOf := reflect.ValueOf(entity)
+	rootEntityValueOf := reflect.ValueOf(entity)
+	entityValueOf := reflect.ValueOf(entity).Elem()
+	entityTypeOf := reflect.TypeOf(entity).Elem()
 
 	copyFields := map[string]struct{}{}
 	for _, v := range field {
 		copyFields[v] = struct{}{}
 	}
 
-	iterateTo(toTypeOf, &toValueOf, &entityValueOf, copyFields)
+	iterateToEntity(entityTypeOf, &entityValueOf, &rootEntityValueOf, toTypeOf, &toValueOf, copyFields)
 
 	return nil
 }
 
-func iterateTo(toTypeOf reflect.Type, toValueOf *reflect.Value, entityValueOf *reflect.Value, fields map[string]struct{}) {
-	toTypeOfNumField := toTypeOf.NumField()
-	for i := 0; i < toTypeOfNumField; i++ {
-		if toTypeOf.Field(i).Type.Kind() == reflect.Struct {
-			v := toValueOf.Field(i)
-			iterateTo(toTypeOf.Field(i).Type, &v, entityValueOf, fields)
-		} else if name := toTypeOf.Field(i).Name; strings.HasSuffix(name, "_") {
+func iterateToEntity(etyTypeOf reflect.Type, etyValueOf *reflect.Value, rootEtyValueOf *reflect.Value, toTypeOf reflect.Type, toValueOf *reflect.Value, onlyCopyThisFields map[string]struct{}) {
 
-			// TODO Warning with this logic
-			if len(fields) > 0 {
-				if _, exists := fields[name]; !exists {
-					continue
+	toTypeOfString := strings.Split(toTypeOf.String(), ".")
+	toPkg := toTypeOfString[0]
+	toObject := toTypeOfString[1]
+
+	etyTypeOfNumField := etyTypeOf.NumField()
+	for i := 0; i < etyTypeOfNumField; i++ {
+		if etyTypeOf.Field(i).Type.Kind() == reflect.Pointer && reflect.Indirect(etyValueOf.Field(i)).Kind() == reflect.Struct {
+			_etyValueOf := etyValueOf.Field(i)
+			iterateToEntity(reflect.Indirect(etyValueOf.Field(i)).Type(), &_etyValueOf, rootEtyValueOf, toTypeOf, toValueOf, onlyCopyThisFields)
+		} else if etyTypeOf.Field(i).Type.Kind() == reflect.Struct {
+			_etyValueOf := etyValueOf.Field(i)
+			iterateToEntity(etyTypeOf.Field(i).Type, &_etyValueOf, rootEtyValueOf, toTypeOf, toValueOf, onlyCopyThisFields)
+		} else {
+
+			fName := etyTypeOf.Field(i).Name
+
+			var toInput = false
+			fMeta := readFieldMetadata(etyTypeOf.Field(i))
+			toFieldName := FieldNameToCode(fName)
+
+			if toObject == "EntityQRO" {
+				if fMeta.qro != "" {
+					toFieldName = fMeta.qro
 				}
-			}
-
-			var methodName string
-			if val, ok := toTypeOf.Field(i).Tag.Lookup("read_method"); ok {
-				methodName = val
 			} else {
-				varName, _ := strings.CutSuffix(name, "_")
-				methodName = fmt.Sprintf("%s", varName)
+				switch toPkg {
+				// inputs
+				case "http", "gin", "dto":
+					toInput = true
+					if fMeta.dto.http != "" {
+						toFieldName = fMeta.dto.http
+					}
+
+				// outputs
+				case "memory":
+					if fMeta.dmo.memory != "" {
+						toFieldName = fMeta.dmo.memory
+					}
+				case "redis":
+					if fMeta.dmo.redis != "" {
+						toFieldName = fMeta.dmo.redis
+					}
+				case "mongodb":
+					if fMeta.dmo.mongodb != "" {
+						toFieldName = fMeta.dmo.mongodb
+					}
+				case "sql":
+					if fMeta.dmo.sql != "" {
+						toFieldName = fMeta.dmo.sql
+					}
+
+				// testing
+				case "entity_test":
+					if fMeta.dmo.memory != "" {
+						toFieldName = fMeta.dmo.memory
+					}
+				}
 			}
 
-			if entityValueOf.MethodByName(methodName).Kind() != reflect.Invalid {
+			// TODO Warning with this logic...
+			// this is used at QRO  when the query has a projection to copy only (from Entity TO QRO) projected fields
+			if len(onlyCopyThisFields) > 0 {
+				if _, exists := onlyCopyThisFields[toFieldName]; !exists {
+					continue
+				}
+			}
 
-				if reflect.TypeOf(entityValueOf.MethodByName(methodName).Interface()).NumOut() == 0 {
+			methodName := fMeta.getter
+			if rootEtyValueOf.MethodByName(methodName).Kind() != reflect.Invalid {
+				if reflect.TypeOf(rootEtyValueOf.MethodByName(methodName).Interface()).NumOut() == 0 {
 					continue
 				}
 
-				values := entityValueOf.MethodByName(methodName).Call([]reflect.Value{})
+				values := rootEtyValueOf.MethodByName(methodName).Call([]reflect.Value{})
 				valueToSet := values[0]
-				toValueOfField := toValueOf.Field(i)
 
-				// Checking for encrypted fields
-				if tagVal, ok := toTypeOf.Field(i).Tag.Lookup(tagField); ok {
-					if tagVal == "encrypted" {
+				if fMeta.encrypted {
+					if !toInput {
 						if toValueOf.MethodByName("EncryptString").Kind() != reflect.Invalid {
 							vals := toValueOf.MethodByName("EncryptString").Call([]reflect.Value{valueToSet})
 							valueToSet = vals[0]
@@ -72,7 +120,9 @@ func iterateTo(toTypeOf reflect.Type, toValueOf *reflect.Value, entityValueOf *r
 					}
 				}
 
-				setValue(&toValueOfField, &valueToSet)
+				if toFieldV := toValueOf.FieldByName(toFieldName); toFieldV.IsValid() {
+					setValue(&toFieldV, &valueToSet)
+				}
 			}
 		}
 	}
@@ -96,6 +146,24 @@ func setValue(dest *reflect.Value, value *reflect.Value) {
 			dest.Set(reflect.ValueOf(v))
 		case *string:
 			dest.Set(reflect.ValueOf(ptr.ToString(v)))
+		}
+
+	case data_type.JsonArrayFloat, data_type.JsonArrayInteger, data_type.JsonArrayString, data_type.JsonArrayDate, data_type.JsonArrayBoolean:
+		if jsonStr, err := json.Marshal(value.Interface()); err == nil {
+			str := string(jsonStr)
+			switch dv.(type) {
+			case data_type.JsonArrayFloat:
+				dest.Set(reflect.ValueOf(data_type.JsonArrayFloat(&str)))
+			case data_type.JsonArrayInteger:
+				dest.Set(reflect.ValueOf(data_type.JsonArrayInteger(&str)))
+			case data_type.JsonArrayString:
+				dest.Set(reflect.ValueOf(data_type.JsonArrayString(&str)))
+			case data_type.JsonArrayDate:
+				dest.Set(reflect.ValueOf(data_type.JsonArrayDate(&str)))
+			case data_type.JsonArrayBoolean:
+				dest.Set(reflect.ValueOf(data_type.JsonArrayBoolean(&str)))
+
+			}
 		}
 
 	case *int:
@@ -183,6 +251,34 @@ func setValue(dest *reflect.Value, value *reflect.Value) {
 			switch value.Index(0).Kind() {
 			case reflect.Int:
 				dest.Set(reflect.ValueOf(value.Interface().([]int)))
+			}
+		}
+	case []int32:
+		if value.Len() > 0 {
+			switch value.Index(0).Kind() {
+			case reflect.Int32:
+				dest.Set(reflect.ValueOf(value.Interface().([]int32)))
+			}
+		}
+	case []int64:
+		if value.Len() > 0 {
+			switch value.Index(0).Kind() {
+			case reflect.Int64:
+				dest.Set(reflect.ValueOf(value.Interface().([]int64)))
+			}
+		}
+	case []float64:
+		if value.Len() > 0 {
+			switch value.Index(0).Kind() {
+			case reflect.Float64:
+				dest.Set(reflect.ValueOf(value.Interface().([]float64)))
+			}
+		}
+	case []float32:
+		if value.Len() > 0 {
+			switch value.Index(0).Kind() {
+			case reflect.Float32:
+				dest.Set(reflect.ValueOf(value.Interface().([]float32)))
 			}
 		}
 	case []string:
