@@ -1,6 +1,9 @@
 package tql
 
-import "go.mongodb.org/mongo-driver/bson"
+import (
+	"go.mongodb.org/mongo-driver/bson"
+	"strings"
+)
 
 func CursorToDocument(q *Query, filter bson.D) (cursorFilter bson.D, limit int64, sortD bson.D) {
 
@@ -39,7 +42,7 @@ func ToSortDocument(items []SortItem) bson.D {
 	sf := bson.D{}
 	for _, f := range items {
 		var sortType int8
-		if f.Kind == "asc" {
+		if strings.ToLower(f.Kind) == "asc" {
 			sortType = 1
 		} else {
 			sortType = -1
@@ -62,7 +65,7 @@ func toCursorFilter(filter bson.D, cursor *Cursor) bson.D {
 	var f bson.D
 	if cursor.SortVal() != nil {
 		sortDocument := bson.D{}
-		if cursor.SortType() == "asc" {
+		if strings.ToLower(cursor.SortType()) == "asc" {
 			sortDocument = bson.D{{cursor.SortField(), bson.D{{"$gt", cursor.SortVal()}}}}
 		} else {
 			sortDocument = bson.D{{cursor.SortField(), bson.D{{"$lt", cursor.SortVal()}}}}

@@ -42,7 +42,7 @@ type EntityDMOBasePartial struct {
 	Int_     int    `json:"number,omitempty"`
 	Boolean_ bool   `json:"boolean,omitempty"`
 	Slice_   []int  `json:"slice"`
-	Secret_  string `json:"secret" tpdo:"encrypted"`
+	Secret_  string `json:"secret"`
 }
 
 type EntityDMOJSON struct {

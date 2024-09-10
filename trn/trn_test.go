@@ -28,7 +28,8 @@ func TestTRN_String(t *testing.T) {
 	if rn.String() != fmt.Sprintf("trn::%s::%s::%s", kind, name, id) {
 		t.Error("invalid string representation")
 	}
-	fmt.Println(rn.String())
+	//fmt.Println(rn.String())
+	//fmt.Println(rn.URN())
 }
 
 func TestTRN_Equals(t *testing.T) {

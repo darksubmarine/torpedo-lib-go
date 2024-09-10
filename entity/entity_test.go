@@ -12,12 +12,12 @@ type entityBase struct {
 	updated int64
 
 	// schema fields
-	_string  string
-	_int     int
-	_boolean bool
-	_slice   []int
-	_inlist  string
-	_secret  string
+	_string  string `torpedo.dmo:"memory=String_" torpedo.getter:"String" torpedo.setter:"SetString" torpedo.dto:"http=String_" `
+	_int     int    `torpedo.dmo:"memory=Int_" torpedo.getter:"Int" torpedo.setter:"SetInt" torpedo.dto:"http=Int_" `
+	_boolean bool   `torpedo.dmo:"memory=Boolean_" torpedo.getter:"Boolean" torpedo.setter:"SetBoolean" torpedo.dto:"http=Boolean_" `
+	_slice   []int  `torpedo.dmo:"memory=Slice_" torpedo.getter:"Slice" torpedo.setter:"SetSlice" torpedo.dto:"http=Slice_"`
+	_inlist  string `torpedo.dmo:"memory=Inlist_" torpedo.getter:"Inlist" torpedo.setter:"SetInlist" torpedo.dto:"http=Inlist_"`
+	_secret  string `torpedo.field:"encrypted" torpedo.getter:"Secret" torpedo.setter:"SetSecret" torpedo.dto:"http=Secret_" torpedo.dmo:"memory=Secret_"`
 
 	validators map[string]validator.IValidator
 }

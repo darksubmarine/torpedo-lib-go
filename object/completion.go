@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/darksubmarine/torpedo-lib-go/data_struct"
 	"reflect"
+	"strings"
 )
 
 // IsComplete iterates all struct fields by reflection and check if values are nil.
@@ -29,6 +30,12 @@ func iterateFields(objTypeOf reflect.Type, objValueOf reflect.Value, skip map[st
 
 		if _, ok := skip[objTypeOf.Field(i).Name]; ok {
 			continue
+		}
+
+		if tVal, ok := objTypeOf.Field(i).Tag.Lookup("torpedo.field"); ok {
+			if strings.Contains(tVal, "optional") {
+				continue
+			}
 		}
 
 		switch objTypeOf.Field(i).Type.Kind() {

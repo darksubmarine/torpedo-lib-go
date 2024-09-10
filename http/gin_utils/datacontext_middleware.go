@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	KeyDataContext = "TPDO_DATA_CONTEXT"
+	KeyDataContext = "TORPEDO_DATA_CONTEXT"
 )
 
 // WithDataContext sets a context.DataMap as context application useful to share data within request execution flow.
