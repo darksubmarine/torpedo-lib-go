@@ -66,7 +66,7 @@ type ApplicationContainer struct {
 
 	// dynamic dependencies
 	providers map[string]*RegisteredProvider
-	values    sync.Map //map[string]reflect.Value
+	values    sync.Map
 
 	// hooks
 	onStartHook []func() error
@@ -127,9 +127,8 @@ func (c *ApplicationContainer) WithProvider(provider IProvider) *ApplicationCont
 			}
 
 			if tagParts[0] == tagProvider { // it is a provider
-				if _, ok := c.values.Load(instanceType); /*c.values[instanceType]*/ !ok {
+				if _, ok := c.values.Load(instanceType); !ok {
 					val := reflect.ValueOf(provider).Elem().Field(i)
-					//c.values[instanceType] = reflect.NewAt(val.Type(), unsafe.Pointer(val.UnsafeAddr())).Elem()
 					c.values.Store(instanceType, reflect.NewAt(val.Type(), unsafe.Pointer(val.UnsafeAddr())).Elem())
 					c.providers[providerName].provides[instanceType] = struct{}{}
 				} else {
@@ -192,7 +191,7 @@ func (c *ApplicationContainer) provideDependencies() {
 							instanceType = strings.Replace(tagParts[1], "name=", "", 1)
 						}
 
-						if val, exists := c.values.Load(instanceType); /*c.values[instanceType]*/ exists {
+						if val, exists := c.values.Load(instanceType); exists {
 							value := val.(reflect.Value)
 							if (value.Kind() == reflect.Pointer || value.Kind() == reflect.Func) && value.IsNil() {
 								panic(fmt.Sprintf("The binded field named '%s' in your provider %s cannot be nil. \n> "+
@@ -258,14 +257,13 @@ func (c *ApplicationContainer) Register(name string, obj interface{}) error {
 	if name != "" {
 		instanceType = name
 	}
-	//c.values[instanceType] = val //reflect.NewAt(val.Type(), unsafe.Pointer(val.UnsafeAddr())).Elem()
-	c.values.Store(instanceType, val)
+	c.values.Store(instanceType, val) //reflect.NewAt(val.Type(), unsafe.Pointer(val.UnsafeAddr())).Elem()
 	return nil
 }
 
 // Invoke fetch a named dependency from the container or error if not exists.
 func (c *ApplicationContainer) Invoke(name string) (interface{}, error) {
-	if obj, exists := c.values.Load(name); /*c.values[name]*/ !exists {
+	if obj, exists := c.values.Load(name); !exists {
 		return nil, fmt.Errorf("%w {name=%s}", ErrDependencyNotProvided, name)
 	} else {
 		_obj := obj.(reflect.Value)
@@ -275,7 +273,7 @@ func (c *ApplicationContainer) Invoke(name string) (interface{}, error) {
 
 // InvokeP fetch a named dependency from the container and panic if not exists.
 func (c *ApplicationContainer) InvokeP(name string) interface{} {
-	if obj, exists := c.values.Load(name); /*c.values[name]*/ !exists {
+	if obj, exists := c.values.Load(name); !exists {
 		panic(fmt.Errorf("depedency with name %s has not been provided", name))
 	} else {
 		_obj := obj.(reflect.Value)
