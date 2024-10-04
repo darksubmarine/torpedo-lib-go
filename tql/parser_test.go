@@ -9,36 +9,49 @@ func TestFilterItem(t *testing.T) {
 
 	_json := `
 {
-    "filter": [
-      {
-        "field": "age",
-        "operator": ">=",
-        "value": 18
-      },
-      {
-        "field": "plan",
-        "operator": "[?]", 
-        "value": ["silver","gold","platinum"]
-      },
-      {
-        "field": "date",
-        "operator": ">?<",
-        "value": ["silver","gold"]
+  "filter": {
+        "type": "all",
+        "fields": [
+            {
+                "field": "created",
+                "operator": ">=",
+                "value": 1666875856369
+            },
+            {
+                "field": "age",
+                "operator": ">=",
+                "value": 18
+            },
+            {
+                "field": "plan",
+                "operator": "[?]",
+                "value": [
+                  "silver",
+                  "gold",
+                  "platinum"
+                ]
+            },
+            {
+                "field": "date",
+                "operator": "[?]",
+                "value": [
+                  1665757374948,
+                  1664752374987
+                ]
+            }
+        ]
+    },
+
+  "projection": ["name", "id","updated"],
+
+  "pagination":{
+        "items":30,
+        "offset":{
+          "page":10,
+          "sort": [{"field": "name", "type": "desc"}]
+        }
       }
-    ],
-    
-    "sort": [
-      {"field": "name", "type": "asc"},
-      {"field": "social_number", "type": "desc"}
-    ],
-    
-    "projection": ["id", "name"],
-    
-    "pagination": {
-      "items": 10,
-      "page": 5,
-      "cursor": "QWER!@#$ASDF"
-    }
+
 }`
 
 	var q Query

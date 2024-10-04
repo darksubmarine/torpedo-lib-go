@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"reflect"
 	"strings"
+	"sync"
 	"syscall"
 	"unsafe"
 )
@@ -65,7 +66,7 @@ type ApplicationContainer struct {
 
 	// dynamic dependencies
 	providers map[string]*RegisteredProvider
-	values    map[string]reflect.Value
+	values    sync.Map //map[string]reflect.Value
 
 	// hooks
 	onStartHook []func() error
@@ -88,7 +89,7 @@ func NewContainer(opts ContainerOpts) *ApplicationContainer {
 		onStartHook: make([]func() error, 0),
 		onStopHook:  make([]func() error, 0),
 		providers:   map[string]*RegisteredProvider{},
-		values:      map[string]reflect.Value{},
+		values:      sync.Map{}, //map[string]reflect.Value{},
 	}
 
 	signal.Notify(container.sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -126,9 +127,10 @@ func (c *ApplicationContainer) WithProvider(provider IProvider) *ApplicationCont
 			}
 
 			if tagParts[0] == tagProvider { // it is a provider
-				if _, ok := c.values[instanceType]; !ok {
+				if _, ok := c.values.Load(instanceType); /*c.values[instanceType]*/ !ok {
 					val := reflect.ValueOf(provider).Elem().Field(i)
-					c.values[instanceType] = reflect.NewAt(val.Type(), unsafe.Pointer(val.UnsafeAddr())).Elem()
+					//c.values[instanceType] = reflect.NewAt(val.Type(), unsafe.Pointer(val.UnsafeAddr())).Elem()
+					c.values.Store(instanceType, reflect.NewAt(val.Type(), unsafe.Pointer(val.UnsafeAddr())).Elem())
 					c.providers[providerName].provides[instanceType] = struct{}{}
 				} else {
 					panic(fmt.Sprintf("provider %s is trying to provide an already registered dependency with name/type: %s", providerName, instanceType))
@@ -190,8 +192,9 @@ func (c *ApplicationContainer) provideDependencies() {
 							instanceType = strings.Replace(tagParts[1], "name=", "", 1)
 						}
 
-						if val, exists := c.values[instanceType]; exists {
-							if (val.Kind() == reflect.Pointer || val.Kind() == reflect.Func) && val.IsNil() {
+						if val, exists := c.values.Load(instanceType); /*c.values[instanceType]*/ exists {
+							value := val.(reflect.Value)
+							if (value.Kind() == reflect.Pointer || value.Kind() == reflect.Func) && value.IsNil() {
 								panic(fmt.Sprintf("The binded field named '%s' in your provider %s cannot be nil. \n> "+
 									"hint: Check if the provider has been initialized into the Provider() method in your %s", field.Name, provName, c.lookupProviderFor(instanceType)))
 							}
@@ -200,11 +203,11 @@ func (c *ApplicationContainer) provideDependencies() {
 							// fv is not writable because it is no-exportable. So, using unsafe.Pointer to hack it!
 							fv = reflect.NewAt(fv.Type(), unsafe.Pointer(fv.UnsafeAddr())).Elem()
 
-							if val.Kind() == reflect.Func {
-								out := val.Call([]reflect.Value{reflect.ValueOf(c)})
+							if value.Kind() == reflect.Func {
+								out := value.Call([]reflect.Value{reflect.ValueOf(c)})
 								fv.Set(reflect.ValueOf(out[0].Interface()))
 							} else {
-								fv.Set(reflect.ValueOf(val.Interface()))
+								fv.Set(reflect.ValueOf(value.Interface()))
 							}
 						} else {
 							panic(fmt.Sprintf("provider not found for %s at %s", instanceType, provName))
@@ -255,26 +258,28 @@ func (c *ApplicationContainer) Register(name string, obj interface{}) error {
 	if name != "" {
 		instanceType = name
 	}
-	c.values[instanceType] = val //reflect.NewAt(val.Type(), unsafe.Pointer(val.UnsafeAddr())).Elem()
-
+	//c.values[instanceType] = val //reflect.NewAt(val.Type(), unsafe.Pointer(val.UnsafeAddr())).Elem()
+	c.values.Store(instanceType, val)
 	return nil
 }
 
 // Invoke fetch a named dependency from the container or error if not exists.
 func (c *ApplicationContainer) Invoke(name string) (interface{}, error) {
-	if obj, exists := c.values[name]; !exists {
+	if obj, exists := c.values.Load(name); /*c.values[name]*/ !exists {
 		return nil, fmt.Errorf("%w {name=%s}", ErrDependencyNotProvided, name)
 	} else {
-		return obj.Interface(), nil
+		_obj := obj.(reflect.Value)
+		return _obj.Interface(), nil
 	}
 }
 
 // InvokeP fetch a named dependency from the container and panic if not exists.
 func (c *ApplicationContainer) InvokeP(name string) interface{} {
-	if obj, exists := c.values[name]; !exists {
+	if obj, exists := c.values.Load(name); /*c.values[name]*/ !exists {
 		panic(fmt.Errorf("depedency with name %s has not been provided", name))
 	} else {
-		return obj.Interface()
+		_obj := obj.(reflect.Value)
+		return _obj.Interface()
 	}
 }
 
