@@ -51,6 +51,29 @@ func TestFieldValue_Updated(t *testing.T) {
 	qro := &EntityQRO{
 		Id_:      ptr.String("qwerty"),
 		Created_: ptr.Int64(123),
+		Updated_: ptr.Int64(456),
+		Message_: ptr.String("in a bottle"),
+		PubDate_: ptr.Int64(789),
+		PostId_:  ptr.String("asdfgh"),
+		QRO: QRO{
+			Custom_: ptr.String("some custom value!"),
+		},
+	}
+
+	val := tql.FieldValue(qro, "Updated_")
+	switch v := val.(type) {
+	case int64:
+		assert.EqualValues(t, 456, v)
+	default:
+		assert.Fail(t, "invalid data type")
+	}
+
+}
+
+func TestFieldValue_Nil(t *testing.T) {
+	qro := &EntityQRO{
+		Id_:      ptr.String("qwerty"),
+		Created_: ptr.Int64(123),
 		Updated_: nil,
 		Message_: ptr.String("in a bottle"),
 		PubDate_: ptr.Int64(789),
@@ -62,10 +85,10 @@ func TestFieldValue_Updated(t *testing.T) {
 
 	val := tql.FieldValue(qro, "Updated_")
 	switch v := val.(type) {
-	case string:
-		assert.EqualValues(t, "some custom value!", v)
-	default:
+	case interface{}:
 		assert.Fail(t, "invalid data type")
+	default:
+		assert.Nil(t, v)
 	}
 
 }
