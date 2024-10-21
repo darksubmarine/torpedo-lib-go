@@ -6,3 +6,5 @@
 [![Release](https://img.shields.io/github/release/darksubmarine/torpedo-lib-go.svg?style=flat-square)](https://github.com/darksubmarine/torpedo-lib-go/releases)
 
 Go library to use in your torpedo projects
+
+> Before moving on, please consider giving us a GitHub star ⭐️. Thank you!
