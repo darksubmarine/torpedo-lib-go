@@ -101,6 +101,7 @@ func fetchFieldsMetadata(etyTypeOf reflect.Type, etyValueOf reflect.Value) map[s
 }
 
 type FieldMetadata struct {
+	rel       bool
 	optional  bool
 	encrypted bool
 	getter    string
@@ -117,6 +118,7 @@ type FieldMetadata struct {
 	qro string
 }
 
+func (f *FieldMetadata) IsRelationship() bool   { return f.rel }
 func (f *FieldMetadata) IsOptional() bool       { return f.optional }
 func (f *FieldMetadata) IsEncrypted() bool      { return f.encrypted }
 func (f *FieldMetadata) Getter() string         { return f.getter }
@@ -131,6 +133,12 @@ func (f *FieldMetadata) QroName() string        { return f.qro }
 func readFieldMetadata(field reflect.StructField) *FieldMetadata {
 
 	meta := &FieldMetadata{optional: false, encrypted: false}
+
+	if tVal, ok := field.Tag.Lookup(tagRel); ok {
+		if tVal == "hasOne" || tVal == "hasMany" {
+			meta.rel = true
+		}
+	}
 
 	if tVal, ok := field.Tag.Lookup(tagField); ok {
 		if strings.Contains(tVal, "optional") {

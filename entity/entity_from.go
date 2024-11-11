@@ -20,12 +20,10 @@ func From(from interface{}, entity interface{}) (err error) {
 
 	fromTypeOf := reflect.TypeOf(from).Elem()
 	fromValueOf := reflect.ValueOf(from).Elem()
-	//entityValueOf := reflect.ValueOf(entity)
 	rootEntityValueOf := reflect.ValueOf(entity)
 	entityValueOf := reflect.ValueOf(entity).Elem()
 	entityTypeOf := reflect.TypeOf(entity).Elem()
 
-	//return iterateFrom(fromTypeOf, fromValueOf, &entityValueOf)
 	return iterateFromEntity(fromTypeOf, &fromValueOf, entityTypeOf, &entityValueOf, &rootEntityValueOf)
 }
 
@@ -135,51 +133,14 @@ func getValue(v reflect.Value) reflect.Value {
 	return valueOf
 }
 
-func iterateFrom(fromTypeOf reflect.Type, fromValueOf reflect.Value, entityValueOf *reflect.Value) error {
-	fromTypeOfNumField := fromTypeOf.NumField()
-	for i := 0; i < fromTypeOfNumField; i++ {
-		if fromTypeOf.Field(i).Type.Kind() == reflect.Struct {
-			if err := iterateFrom(fromTypeOf.Field(i).Type, fromValueOf.Field(i), entityValueOf); err != nil {
-				return err
-			}
-		} else if name := fromTypeOf.Field(i).Name; strings.HasSuffix(name, "_") {
-			varName, _ := strings.CutSuffix(name, "_")
-			methodName := fmt.Sprintf("Set%s", varName)
-			if entityValueOf.MethodByName(methodName).Kind() != reflect.Invalid {
-				if val := getValue(fromValueOf.Field(i)); val.Kind() != reflect.Invalid {
-
-					var valueToSet = val
-					// Checking for encrypted fields
-					if tagVal, ok := fromTypeOf.Field(i).Tag.Lookup(tagField); ok {
-						if tagVal == "encrypted" {
-							if fromValueOf.MethodByName("DecryptString").Kind() != reflect.Invalid {
-								vals := fromValueOf.MethodByName("DecryptString").Call([]reflect.Value{val})
-								valueToSet = vals[0] // TODO handle error
-							}
-						}
-					}
-
-					// setting value
-					res := entityValueOf.MethodByName(methodName).Call([]reflect.Value{valueToSet})
-
-					// checking if result has an error
-					for _, r := range res {
-
-						if r.Interface() != nil && r.Type().Implements(errorInterface) {
-							return r.Interface().(error)
-						}
-
-					}
-				}
-			}
-		}
-	}
-	return nil
-}
-
 func iterateFromEntity(fromTypeOf reflect.Type, fromValueOf *reflect.Value, etyTypeOf reflect.Type, etyValueOf *reflect.Value, rootEtyValueOf *reflect.Value) error {
 	etyTypeOfNumField := etyTypeOf.NumField()
 	for i := 0; i < etyTypeOfNumField; i++ {
+
+		fMeta := readFieldMetadata(etyTypeOf.Field(i))
+		if fMeta.IsRelationship() {
+			continue
+		}
 
 		if etyTypeOf.Field(i).Type.Kind() == reflect.Pointer && reflect.Indirect(etyValueOf.Field(i)).Kind() == reflect.Struct {
 			_etyValueOf := etyValueOf.Field(i)
@@ -194,7 +155,6 @@ func iterateFromEntity(fromTypeOf reflect.Type, fromValueOf *reflect.Value, etyT
 		} else {
 			fName := etyTypeOf.Field(i).Name
 			var fromOutput = false
-			fMeta := readFieldMetadata(etyTypeOf.Field(i))
 			fromFieldName := FieldNameToCode(fName)
 			fromPkg := strings.Split(fromTypeOf.String(), ".")[0]
 
