@@ -5,6 +5,13 @@ import (
 	"github.com/darksubmarine/torpedo-lib-go/validator"
 )
 
+type relationshipEntity struct {
+	// required
+	id      string
+	created int64
+	updated int64
+}
+
 type entityBase struct {
 	// required
 	id      string
@@ -18,6 +25,9 @@ type entityBase struct {
 	_slice   []int  `torpedo.dmo:"memory=Slice_" torpedo.getter:"Slice" torpedo.setter:"SetSlice" torpedo.dto:"http=Slice_"`
 	_inlist  string `torpedo.dmo:"memory=Inlist_" torpedo.getter:"Inlist" torpedo.setter:"SetInlist" torpedo.dto:"http=Inlist_"`
 	_secret  string `torpedo.field:"encrypted" torpedo.getter:"Secret" torpedo.setter:"SetSecret" torpedo.dto:"http=Secret_" torpedo.dmo:"memory=Secret_"`
+
+	hasone  *relationshipEntity   `torpedo.rel:"hasOne"`
+	hasmany []*relationshipEntity `torpedo.rel:"hasMany"`
 
 	validators map[string]validator.IValidator
 }
@@ -65,6 +75,12 @@ func (e *entityBase) Inlist() string { return e._inlist }
 func (e *entityBase) SetSecret(s string) { e._secret = s }
 func (e *entityBase) Secret() string     { return e._secret }
 
+func (e *entityBase) SetHasOne(r *relationshipEntity) { e.hasone = r }
+func (e *entityBase) HasOne() *relationshipEntity     { return e.hasone }
+
+func (e *entityBase) SetHasMany(r []*relationshipEntity) { e.hasmany = r }
+func (e *entityBase) HasMany() []*relationshipEntity     { return e.hasmany }
+
 type Entity struct {
 	*entityBase
 
@@ -76,7 +92,6 @@ func (e *Entity) SetName(n string) { e.name = n }
 func (e *Entity) Name() string     { return e.name }
 
 func NewEntity() *Entity {
-	//return &Entity{entityBase: &entityBase{_slice: []int{}}}
 	return &Entity{entityBase: newEntityBase()}
 
 }

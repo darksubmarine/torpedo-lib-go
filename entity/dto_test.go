@@ -1,5 +1,12 @@
 package entity_test
 
+type RelationshipDTO struct {
+	// required
+	Id_      *string `json:"id"`
+	Created_ *int64  `json:"created"`
+	Updated_ *int64  `json:"updated"`
+}
+
 type DTOEntityBase struct {
 	Id_      *string `json:"id"`
 	Created_ *int64  `json:"created"`
@@ -13,6 +20,9 @@ type DTOEntityBasePartial struct {
 	Boolean_ *bool   `json:"boolean,omitempty"`
 	Slice_   []int   `json:"slice"`
 	Inlist_  *string `json:"inlist,omitempty"`
+
+	Hasone_  *RelationshipDTO   `json:"hasone,omitempty"`
+	Hasmany_ []*RelationshipDTO `json:"hasmany,omitempty"`
 }
 
 type DTOEntity struct {

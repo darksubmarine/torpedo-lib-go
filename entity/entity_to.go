@@ -41,6 +41,12 @@ func iterateToEntity(etyTypeOf reflect.Type, etyValueOf *reflect.Value, rootEtyV
 
 	etyTypeOfNumField := etyTypeOf.NumField()
 	for i := 0; i < etyTypeOfNumField; i++ {
+
+		fMeta := readFieldMetadata(etyTypeOf.Field(i))
+		if fMeta.IsRelationship() {
+			continue
+		}
+
 		if etyTypeOf.Field(i).Type.Kind() == reflect.Pointer && reflect.Indirect(etyValueOf.Field(i)).Kind() == reflect.Struct {
 			_etyValueOf := etyValueOf.Field(i)
 			iterateToEntity(reflect.Indirect(etyValueOf.Field(i)).Type(), &_etyValueOf, rootEtyValueOf, toTypeOf, toValueOf, onlyCopyThisFields)
@@ -52,7 +58,6 @@ func iterateToEntity(etyTypeOf reflect.Type, etyValueOf *reflect.Value, rootEtyV
 			fName := etyTypeOf.Field(i).Name
 
 			var toInput = false
-			fMeta := readFieldMetadata(etyTypeOf.Field(i))
 			toFieldName := FieldNameToCode(fName)
 
 			if toObject == "EntityQRO" {

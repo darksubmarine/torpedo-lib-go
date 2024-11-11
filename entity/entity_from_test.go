@@ -16,7 +16,10 @@ var fullDTO = []byte(`{
 	"number": 515,
 	"boolean": true,
 	"slice": [1,2,3,4,5,6,7,8,9,0],
-	"name": "some-name-value"
+	"name": "some-name-value",
+
+	"hasone": {"id": "qwerty-123456", "created": 1697649758238, "updated": 1697649758123},
+	"hasmany": [{"id": "qwerty-123456", "created": 1697649758238, "updated": 1697649758123}]
 }`)
 
 var partialDTO = []byte(`{
@@ -51,6 +54,11 @@ func TestDTOToEntity_FullDTO(t *testing.T) {
 	assert.EqualValues(t, ety.Boolean(), ptr.ToBool(dto.Boolean_))
 	assert.EqualValues(t, ety.Slice(), dto.Slice_)
 	assert.EqualValues(t, ety.Name(), ptr.ToString(dto.Name_))
+
+	// Relationship is a decorated field only populated at service.Read method
+	// This one should not be set via entity.From
+	assert.Nil(t, ety.HasOne())
+	assert.Nil(t, ety.HasMany())
 }
 
 func TestDTOToEntity_PartialDTO(t *testing.T) {

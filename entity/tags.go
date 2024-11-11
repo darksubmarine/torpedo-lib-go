@@ -7,4 +7,5 @@ const (
 	tagQRO    = "torpedo.qro"
 	tagDMO    = "torpedo.dmo"
 	tagDTO    = "torpedo.dto"
+	tagRel    = "torpedo.rel"
 )
